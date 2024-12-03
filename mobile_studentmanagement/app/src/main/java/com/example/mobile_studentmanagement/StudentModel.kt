@@ -1,3 +1,8 @@
-package com.example.mobile_studentmanagement
+package com.example.studentmanager
 
-data class StudentModel(var studentName: String, var studentId: String)
+import java.io.Serializable
+
+data class Student(
+    var name: String,
+    var id: String
+) : Serializable

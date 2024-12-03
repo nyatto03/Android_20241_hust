@@ -1,104 +1,93 @@
-package com.example.mobile_studentmanagement
+package com.example.studentmanager
 
+import android.content.Intent
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.widget.Button
-import android.widget.EditText
-import androidx.appcompat.app.AlertDialog
+import android.view.ContextMenu
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ListView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var listViewStudents: ListView
     private lateinit var studentAdapter: StudentAdapter
-    private val students = mutableListOf(
-        StudentModel("Bùi Thị Hạnh", "SV008"),
-        StudentModel("Đinh Văn Hùng", "SV009"),
-        StudentModel("Nguyễn Thị Linh", "SV010"),
-        StudentModel("Phạm Văn Long", "SV011"),
-        StudentModel("Trần Thị Mai", "SV012"),
-        StudentModel("Lê Thị Ngọc", "SV013"),
-        StudentModel("Vũ Văn Nam", "SV014"),
-        StudentModel("Hoàng Thị Phương", "SV015"),
-        StudentModel("Đỗ Văn Quân", "SV016"),
-        StudentModel("Nguyễn Thị Thu", "SV017"),
-        StudentModel("Trần Văn Tài", "SV018"),
-        StudentModel("Phạm Thị Tuyết", "SV019"),
-        StudentModel("Lê Văn Vũ", "SV020")
-    )
+    private val students = mutableListOf<Student>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        studentAdapter = StudentAdapter(students, this)
+        listViewStudents = findViewById(R.id.list_view_students)
+        val btnAddNew: FloatingActionButton = findViewById(R.id.btn_add_new)
 
-        findViewById<RecyclerView>(R.id.recycler_view_students).run {
-            adapter = studentAdapter
-            layoutManager = LinearLayoutManager(this@MainActivity)
-        }
+        studentAdapter = StudentAdapter(this, students)
+        listViewStudents.adapter = studentAdapter
 
-        findViewById<Button>(R.id.btn_add_new).setOnClickListener {
-            showAddStudentDialog()
+        // Đăng ký context menu
+        registerForContextMenu(listViewStudents)
+
+        // Thêm mới sinh viên
+        btnAddNew.setOnClickListener {
+            val intent = Intent(this, AddOrEditStudentActivity::class.java)
+            startActivityForResult(intent, 1)
         }
     }
 
-    fun showAddStudentDialog() {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_student, null)
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Add New Student")
-            .setView(dialogView)
-            .setPositiveButton("Add") { _, _ ->
-                val name = dialogView.findViewById<EditText>(R.id.edit_text_name).text.toString()
-                val id = dialogView.findViewById<EditText>(R.id.edit_text_id).text.toString()
-                val newStudent = StudentModel(name, id)
-                students.add(newStudent)
-                studentAdapter.notifyItemInserted(students.size - 1)
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.menu_add) {
+            val intent = Intent(this, AddOrEditStudentActivity::class.java)
+            startActivityForResult(intent, 1)
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    override fun onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo?) {
+        super.onCreateContextMenu(menu, v, menuInfo)
+        menuInflater.inflate(R.menu.context_menu, menu)
+    }
+
+    override fun onContextItemSelected(item: MenuItem): Boolean {
+        val info = item.menuInfo as AdapterView.AdapterContextMenuInfo
+        val position = info.position
+
+        when (item.itemId) {
+            R.id.menu_edit -> {
+                val intent = Intent(this, AddOrEditStudentActivity::class.java)
+                intent.putExtra("student", students[position])
+                intent.putExtra("position", position)
+                startActivityForResult(intent, 2)
             }
-            .setNegativeButton("Cancel", null)
-            .create()
-        dialog.show()
-    }
-
-    fun showEditStudentDialog(position: Int) {
-        val student = students[position]
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_student, null).apply {
-            findViewById<EditText>(R.id.edit_text_name).setText(student.studentName)
-            findViewById<EditText>(R.id.edit_text_id).setText(student.studentId)
-        }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Edit Student")
-            .setView(dialogView)
-            .setPositiveButton("Save") { _, _ ->
-                val name = dialogView.findViewById<EditText>(R.id.edit_text_name).text.toString()
-                val id = dialogView.findViewById<EditText>(R.id.edit_text_id).text.toString()
-                student.studentName = name
-                student.studentId = id
-                studentAdapter.notifyItemChanged(position)
-            }
-            .setNegativeButton("Cancel", null)
-            .create()
-        dialog.show()
-    }
-
-    fun showDeleteStudentDialog(position: Int) {
-        val student = students[position]
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Delete Student")
-            .setMessage("Are you sure you want to delete ${student.studentName}?")
-            .setPositiveButton("Delete") { _, _ ->
+            R.id.menu_remove -> {
                 students.removeAt(position)
-                studentAdapter.notifyItemRemoved(position)
-                Snackbar.make(findViewById(R.id.recycler_view_students), "${student.studentName} deleted", Snackbar.LENGTH_LONG)
-                    .setAction("Undo") {
-                        students.add(position, student)
-                        studentAdapter.notifyItemInserted(position)
-                    }.show()
+                studentAdapter.notifyDataSetChanged()
             }
-            .setNegativeButton("Cancel", null)
-            .create()
-        dialog.show()
+        }
+        return super.onContextItemSelected(item)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == RESULT_OK && data != null) {
+            val student = data.getSerializableExtra("student") as Student
+            if (requestCode == 1) { // Add new student
+                students.add(student)
+            } else if (requestCode == 2) { // Edit student
+                val position = data.getIntExtra("position", -1)
+                if (position != -1) {
+                    students[position] = student
+                }
+            }
+            studentAdapter.notifyDataSetChanged()
+        }
     }
 }
